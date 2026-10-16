@@ -1,11 +1,626 @@
-<!DOCTYPE html><html lang="en" data-theme="midnight"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Aurelle — sculpt matter with sound</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css"></head><body>
-<canvas id="c"></canvas><canvas id="fx"></canvas><div class="grain"></div><div class="vig"></div>
-<div id="hud"><b id="hn"><span class="bm"><i></i><i></i><i></i></span>Aurelle<span class="bd">.</span></b><i id="ht">01 — WATER</i><div id="st"><span class="ld"></span><span id="stt">IDLE PULSE</span></div><div id="m"><u></u><u></u><u></u></div></div>
-<div id="hint">Drag: push · Hold + release: charge &amp; unleash · Scroll: zoom · Shift+drag: rotate</div>
-<button id="fsb" class="glass" title="Immerse (hide controls)">⛶</button>
-<div id="panel" class="glass"></div><div id="sm"></div><div id="toast" role="status"></div>
-<div id="dock" class="glass"></div>
-<div id="intro"><div class="ey"><i></i>AN EXPERIMENT IN FEELING</div><h2>Give matter<br><em>a mood.</em></h2><p>A living canvas shaped by sound, motion and the laws you choose to break.</p><div class="hb"><button id="enter">ENTER THE CANVAS ↗</button><button id="surp" class="tb">Surprise me ↗</button></div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="app.js"></script></body></html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AURELLE — Sculpt Matter With Sound</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#78e8f1;--glow:#78e8f133;--bg:#08090d;--line:#ffffff18}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#f5f5f7;font-family:"Space Grotesk",sans-serif;overflow:hidden}
+button,input,select{font:inherit}
+button{cursor:pointer;color:inherit}
+#scene{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
+.shade{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,#08090de8 0%,transparent 24%,transparent 72%,#08090df0 100%)}
+header{position:fixed;z-index:3;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:25px 32px}
+.brand{display:flex;gap:12px;align-items:center}
+.symbol{height:36px;width:36px;border:1px solid var(--accent);border-radius:50%;display:grid;place-items:center;color:var(--accent);font-size:20px;box-shadow:0 0 28px var(--glow)}
+.logo{font-size:19px;letter-spacing:.21em;font-weight:600}
+.tagline{font:9px "DM Mono",monospace;letter-spacing:.15em;color:#898c9c;margin-top:5px}
+.status{font:10px "DM Mono",monospace;letter-spacing:.08em;color:#b7bac7}
+.live{display:inline-block;width:6px;height:6px;border-radius:50%;background:#8cf0bd;margin-right:8px;box-shadow:0 0 9px #8cf0bd}
+main{position:fixed;z-index:2;left:32px;top:24%;pointer-events:none}
+.kicker{font:10px "DM Mono",monospace;letter-spacing:.19em;color:var(--accent);margin-bottom:17px}
+h1{font-size:clamp(42px,6vw,78px);font-weight:500;letter-spacing:-.065em;line-height:.94;margin:0}
+h1 span{color:var(--accent)}
+.description{font-size:12px;line-height:1.9;color:#a3a7b5;max-width:295px;margin-top:22px}
+#elementInfo{position:fixed;z-index:2;right:115px;top:24%;text-align:right;pointer-events:none}
+#elementName{font-size:28px;letter-spacing:-.04em}
+#elementDesc{font:9px "DM Mono",monospace;color:#a3a7b5;letter-spacing:.1em;margin-top:8px}
+#elementNum{font:9px "DM Mono",monospace;color:var(--accent);margin-top:18px;letter-spacing:.15em}
+.elements{position:fixed;z-index:4;right:28px;top:50%;transform:translateY(-35%);display:flex;flex-direction:column;gap:10px}
+.element{width:49px;height:49px;border-radius:15px;border:1px solid var(--line);background:#12141dcc;backdrop-filter:blur(12px);font-size:21px;color:#b8bdcc;transition:.2s}
+.element:hover{transform:translateX(-3px)}
+.element.active{color:var(--accent);border-color:var(--accent);background:var(--glow);box-shadow:0 0 25px var(--glow)}
+.hint{position:fixed;left:32px;bottom:128px;z-index:2;color:#9296a5;font:10px/2 "DM Mono",monospace;pointer-events:none}
+.hint b{font-weight:400;color:#f2f3f7}
+.panel{position:fixed;z-index:5;bottom:20px;left:50%;transform:translateX(-50%);width:min(820px,calc(100% - 34px));padding:13px 15px 11px;background:#11131bd9;border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(24px);box-shadow:0 20px 90px #0008}
+.tools{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.tool{border:1px solid transparent;background:transparent;color:#afb3c0;border-radius:10px;padding:10px 12px;font-size:11px;transition:.2s}
+.tool:hover{background:#ffffff0b;color:white}
+.tool.active{color:var(--accent);border-color:var(--glow);background:var(--glow)}
+.sep{height:25px;width:1px;background:var(--line);margin:0 6px}
+.spacer{flex:1}
+#chaos{border:1px solid #ff695a80;background:linear-gradient(115deg,#8e2458,#f05232);padding:11px 17px;border-radius:10px;font-weight:700;font-size:11px;letter-spacing:.06em;box-shadow:0 0 24px #f0523225;transition:.2s}
+#chaos:hover{filter:brightness(1.25);transform:translateY(-2px)}
+#chaos.active{animation:chaos  .4s infinite alternate;box-shadow:0 0 38px #ff493c99}
+@keyframes chaos{to{filter:brightness(1.8);transform:scale(1.045)}}
+.controls{border-top:1px solid var(--line);padding-top:11px;margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.label{font:9px "DM Mono",monospace;color:#898d9d;letter-spacing:.12em}
+.slider{display:flex;align-items:center;gap:9px;flex:1;min-width:100px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.value{font:10px "DM Mono",monospace;min-width:30px;text-align:right;color:#ddd}
+select{background:#1b1d27;color:#e4e5ed;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:10px}
+#toast{position:fixed;z-index:10;top:49%;left:50%;transform:translate(-50%,-50%);background:#11131ddd;border:1px solid #ffffff25;padding:14px 20px;border-radius:10px;font:10px "DM Mono",monospace;letter-spacing:.14em;opacity:0;transition:.2s;pointer-events:none}
+#toast.show{opacity:1}
+@media(max-width:650px){
+ header{padding:18px}.logo{font-size:16px}.status{display:none}
+ main{left:20px;top:17%}h1{font-size:48px}.description{max-width:220px;font-size:11px}
+ #elementInfo{right:77px;top:18%}#elementName{font-size:21px}#elementDesc{max-width:130px;font-size:8px}
+ .elements{right:10px;gap:7px}.element{width:42px;height:42px}
+ .panel{bottom:8px;width:calc(100% - 14px);padding:9px}
+ .tool{padding:9px 8px;font-size:10px}.hint{left:20px;bottom:148px;font-size:9px}
+ .controls{gap:8px}.label{font-size:8px}
+}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="shade"></div>
+
+<header>
+  <div class="brand">
+    <div class="symbol">✳</div>
+    <div><div class="logo">AURELLE</div><div class="tagline">SCULPT MATTER WITH SOUND</div></div>
+  </div>
+  <div class="status"><span class="live"></span>LIVE MATTER FIELD</div>
+</header>
+
+<main>
+  <div class="kicker">A SENSORY-RICH DIGITAL CANVAS</div>
+  <h1>Shape the<br><span>unseen.</span></h1>
+  <div class="description">An exploration of matter, motion and sound. Push beyond the surface. Change the field. Let the elements respond.</div>
+</main>
+
+<div id="elementInfo">
+  <div id="elementName">Water</div>
+  <div id="elementDesc">FLUID / CONTINUOUS / RESPONSIVE</div>
+  <div id="elementNum">ELEMENT 01 — 04</div>
+</div>
+
+<nav class="elements">
+  <button class="element active" data-el="water" title="Water">≋</button>
+  <button class="element" data-el="fire" title="Fire">♨</button>
+  <button class="element" data-el="air" title="Air">〰</button>
+  <button class="element" data-el="earth" title="Earth">◈</button>
+</nav>
+
+<div class="hint"><b>PRESS</b> to shape<br><b>DRAG</b> to influence<br><b>FLICK</b> to release energy</div>
+
+<div class="panel">
+  <div class="tools">
+    <button class="tool active" data-mode="sculpt">✧ Sculpt</button>
+    <button class="tool" data-mode="stir">↻ Stir</button>
+    <button class="tool" data-mode="gust">➤ Gust</button>
+    <button class="tool" data-mode="attract">◎ Attract</button>
+    <div class="sep"></div>
+    <button class="tool" id="sound">♫ Sound on</button>
+    <div class="spacer"></div>
+    <button id="chaos">✳ CHAOS</button>
+  </div>
+  <div class="controls">
+    <span class="label">FORCE</span>
+    <div class="slider"><input id="force" type="range" min="10" max="100" value="65"><span id="fv" class="value">65%</span></div>
+    <span class="label">SOUND</span>
+    <div class="slider"><input id="volume" type="range" min="0" max="100" value="30"><span id="vv" class="value">30%</span></div>
+    <select id="quality" title="Simulation density">
+      <option value="1">Balanced field</option>
+      <option value="1.5">Dense field</option>
+      <option value=".65">Performance mode</option>
+    </select>
+    <button class="tool" id="reset">↺ Reset</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+
+const canvas=document.querySelector('#scene'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);
+const cfg={
+ water:{name:'Water',desc:'FLUID / CONTINUOUS / RESPONSIVE',color:[78,221,244],accent:'#78e8f1',freq:105},
+ fire:{name:'Fire',desc:'TURBULENT / RISING / UNTAMED',color:[255,112,49],accent:'#ff9b58',freq:68},
+ air:{name:'Air',desc:'FLOWING / WEIGHTLESS / EXPANSIVE',color:[190,178,255],accent:'#c7baff',freq:230},
+ earth:{name:'Earth',desc:'DENSE / ANCIENT / RESONANT',color:[218,177,112],accent:'#e1bd82',freq:48}
+};
+let W,H,DPR,element='water',mode='sculpt',force=.65,volume=.3;
+let chaos=false,chaosPower=0,t=0,last=0;
+let particles=[],waves=[],sparks=[],cracks=[],ripples=[],audio=null;
+let pointer={x:-1000,y:-1000,oldX:0,oldY:0,vx:0,vy:0,down:false,active:false};
+let toastTimeout,quality=1;
+const rand=(a,b)=>a+Math.random()*(b-a);
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const mix=(a,b,n)=>a+(b-a)*n;
+const dist=(x,y,a,b)=>Math.hypot(x-a,y-b);
+
+function resize(){
+ W=innerWidth;H=innerHeight;DPR=Math.min(devicePixelRatio||1,2);
+ canvas.width=W*DPR;canvas.height=H*DPR;
+ canvas.style.width=W+'px';canvas.style.height=H+'px';
+ ctx.setTransform(DPR,0,0,DPR,0,0);seed();
+}
+addEventListener('resize',resize);
+
+function newParticle(x,y,kind){
+ return {x,y,px:x,py:y,vx:rand(-.5,.5),vy:rand(-.5,.5),
+  homeX:x,homeY:y,size:rand(.7,2),life:rand(0,1),phase:rand(0,Math.PI*2),
+  kind:kind||Math.random()};
+}
+function seed(){
+ particles=[];sparks=[];waves=[];ripples=[];cracks=[];
+ const density=Math.floor(W*H/440*quality);
+ for(let i=0;i<density;i++){
+   let x=rand(0,W),y=rand(0,H);
+   particles.push(newParticle(x,y));
+ }
+ for(let i=0;i<150;i++)sparks.push(newSpark(true));
+ for(let i=0;i<12;i++)cracks.push({x:rand(W*.2,W*.8),y:rand(H*.5,H*.86),seed:rand(1,10000),age:rand(0,1)});
+}
+function newSpark(initial=false){
+ return {x:rand(0,W),y:initial?rand(0,H):H+rand(0,60),
+ vx:rand(-1,1),vy:rand(-2,-.5),life:initial?rand(0,1):0,size:rand(.8,2.6)};
+}
+
+function toast(s){
+ $('toast').textContent=s;$('toast').classList.add('show');
+ clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>$('toast').classList.remove('show'),1000);
+}
+function color(a=1){const c=cfg[element].color;return `rgba(${c[0]},${c[1]},${c[2]},${a})`}
+
+function addWave(x,y,vx,vy,power=1){
+ const speed=Math.hypot(vx,vy);
+ waves.push({x,y,r:2,speed:2+speed*.16,strength:(.8+force*1.6+speed*.025)*power,life:1,spin:Math.random()<.5?-1:1});
+ if(waves.length>55)waves.shift();
+}
+function disturbance(x,y,vx,vy,power=1){
+ const intensity=power*(chaos?3.8:1);
+ addWave(x,y,vx,vy,intensity);
+ if(element==='water'){
+   ripples.push({x,y,r:3,life:1,speed:2+Math.hypot(vx,vy)*.18});
+   if(intensity>1.3)for(let i=0;i<7;i++)sparks.push({x,y,vx:rand(-4,4)*intensity,vy:rand(-5,1)*intensity,life:0,size:rand(1,3)});
+ }
+ if(element==='fire'){
+   for(let i=0;i<Math.min(45,Math.floor(5+intensity*6));i++)
+     sparks.push({x:x+rand(-12,12),y:y+rand(-10,10),vx:rand(-3,3)*intensity,vy:rand(-5,-1)*intensity,life:0,size:rand(1,3.5)});
+ }
+ if(element==='earth'){
+   for(let i=0;i<Math.min(35,Math.floor(4+intensity*5));i++)
+     sparks.push({x,y,vx:rand(-4,4)*intensity,vy:rand(-4,1)*intensity,life:0,size:rand(2,5)});
+   cracks.push({x,y,seed:rand(1,10000),age:0});
+ }
+}
+
+function field(x,y,p){
+ const nx=x/W,ny=y/H;
+ const k=chaos?1+chaosPower*2.8:1;
+ let vx=0,vy=0;
+ // Persistent waves carry momentum beyond the cursor.
+ for(const w of waves){
+  const dx=x-w.x,dy=y-w.y,d=Math.hypot(dx,dy)+.01;
+  if(d<w.r*3.5+80){
+   const fall=Math.exp(-d/(w.r*1.5+60))*w.strength;
+   const pulse=Math.sin(d*.027-w.r*.06);
+   vx+=dx/d*pulse*fall*.95;
+   vy+=dy/d*pulse*fall*.95;
+   if(element==='water'){vx+=-dy/d*fall*.42*w.spin;vy+=dx/d*fall*.42*w.spin}
+   if(element==='air'){vx+=-dy/d*fall*.9*w.spin;vy+=dx/d*fall*.9*w.spin}
+  }
+ }
+ // A live hand acts on the field, not merely on the nearest dot.
+ if(pointer.active){
+  const dx=x-pointer.x,dy=y-pointer.y,d=Math.hypot(dx,dy)+.01;
+  const radius=mode==='gust'?360:mode==='attract'?240:mode==='stir'?200:150;
+  if(d<radius){
+   const fall=Math.pow(1-d/radius,1.5)*force*(chaos?4.5:1);
+   if(mode==='attract'){vx-=dx/d*fall*5;vy-=dy/d*fall*5}
+   else if(mode==='stir'){vx+=-dy/d*fall*5;vy+=dx/d*fall*5}
+   else if(mode==='gust'){vx+=pointer.vx*fall*.15;vy+=pointer.vy*fall*.15}
+   else {vx+=dx/d*fall*2+pointer.vx*fall*.2;vy+=dy/d*fall*2+pointer.vy*fall*.2}
+  }
+ }
+ // Chaotic global currents make the entire material move.
+ if(chaos){
+  const cx=W*(.5+.25*Math.sin(t*.47)),cy=H*(.5+.25*Math.cos(t*.38));
+  const dx=x-cx,dy=y-cy,d=Math.hypot(dx,dy)+1;
+  const vortex=Math.sin(t*1.4+nx*12+ny*9);
+  vx+=(-dy/d*2.4+Math.sin(y*.008+t*2)*2)*k;
+  vy+=(dx/d*2.4+Math.cos(x*.009-t*1.7)*2)*k;
+  vx+=Math.cos(t*3+ny*8)*2;vy+=Math.sin(t*2+nx*9)*2;
+ }
+ // Natural ambient circulation never stops.
+ const flow=Math.sin(y*.007+t*.8)+Math.cos(x*.005-t*.6);
+ if(element==='water'){vx+=Math.sin(y*.012+t*1.4)*.35;vy+=Math.cos(x*.009+t)*.28}
+ if(element==='air'){vx+=1.2+Math.sin(y*.006+t+nx*5)*1.5;vy+=Math.cos(x*.005+t*.7)*.65}
+ if(element==='fire'){vx+=Math.sin(y*.014+t*2+x*.008)*.8;vy-=1.1+Math.sin(x*.015+t*1.7)*.7}
+ if(element==='earth'){vx+=Math.sin(y*.009+t*.25)*.15;vy+=.18}
+ return {x:vx,y:vy};
+}
+
+function drawBackground(){
+ ctx.fillStyle=chaos?'rgba(5,5,10,.17)':'rgba(7,8,13,.30)';
+ ctx.fillRect(0,0,W,H);
+ const c=cfg[element].color;
+ const gx=W*(.5+Math.sin(t*.15)*.12),gy=H*.57;
+ const g=ctx.createRadialGradient(gx,gy,0,gx,gy,Math.max(W,H)*.65);
+ g.addColorStop(0,`rgba(${c.join(',')},${chaos?.12:.065})`);
+ g.addColorStop(1,'rgba(0,0,0,0)');
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+
+function updateParticles(dt){
+ const step=Math.min(dt/16.67,2);
+ const c=cfg[element].color;
+ for(const p of particles){
+  p.px=p.x;p.py=p.y;
+  const f=field(p.x,p.y,p);
+  const v=dist(pointer.x,pointer.y,p.x,p.y);
+  let ax=f.x,ay=f.y;
+  const chaosFactor=chaos?3.6:1;
+  if(element==='water'){
+   // A liquid sheet: elasticity, wave motion, and inertia.
+   const wave=Math.sin(p.x*.014-t*1.7+p.phase)*1.1+
+              Math.sin(p.x*.032+t*.8+p.phase)*.55;
+   ax+=(p.homeX-p.x)*.0018+wave*.11;
+   ay+=(p.homeY-p.y)*.0014+wave*.75;
+   p.vx+=ax*step;p.vy+=ay*step;
+   p.vx*=Math.pow(.987,step);p.vy*=Math.pow(.987,step);
+  }else if(element==='fire'){
+   // Hot matter rises, twists, and becomes turbulent.
+   p.vx+=ax*.09*step+Math.sin(p.y*.016+t*3+p.phase)*.11*step;
+   p.vy+=ay*.08*step-(.25+Math.random()*.12)*step;
+   p.vx*=Math.pow(.985,step);p.vy*=Math.pow(.994,step);
+  }else if(element==='air'){
+   // A curl field carries particles along long, fluid streamlines.
+   p.vx+=ax*.12*step+Math.sin(p.y*.007+t+p.phase)*.16*step;
+   p.vy+=ay*.12*step+Math.cos(p.x*.008-t*.8+p.phase)*.12*step;
+   p.vx*=Math.pow(.996,step);p.vy*=Math.pow(.996,step);
+  }else{
+   // Heavy material resists motion and returns slowly after deformation.
+   p.vx+=ax*.055*step+(p.homeX-p.x)*.0006*step;
+   p.vy+=ay*.055*step+(p.homeY-p.y)*.0007*step;
+   p.vx*=Math.pow(.975,step);p.vy*=Math.pow(.975,step);
+  }
+  p.x+=p.vx*step*chaosFactor;
+  p.y+=p.vy*step*chaosFactor;
+  if(element==='fire'&&p.y< -10){p.y=H+rand(0,80);p.x=rand(0,W);p.vy=-rand(.5,2)}
+  if(element==='earth'){
+   if(p.y>H+10){p.y=-5;p.vy=rand(.2,1);p.x=rand(0,W)}
+  }else{
+   if(p.x<-20)p.x=W+10;if(p.x>W+20)p.x=-10;
+   if(element!=='fire'){if(p.y<-20)p.y=H+10;if(p.y>H+20)p.y=-10}
+  }
+ }
+}
+
+function drawWater(){
+ const rows=Math.floor(H/26),cols=Math.floor(W/26);
+ // Translucent connected surface mesh makes the water read as one body.
+ for(let y=0;y<rows;y++){
+  ctx.beginPath();
+  for(let x=0;x<cols;x++){
+   const px=x*26+12,py=y*26+12;
+   const wave=Math.sin(px*.014-t*1.7)*10+Math.sin(px*.027+t+py*.012)*7;
+   const a=field(px,py);
+   const yy=py+wave+a.y*2;
+   if(x===0)ctx.moveTo(px,yy);else ctx.lineTo(px,yy);
+  }
+  ctx.strokeStyle=`rgba(110,231,247,${.07+(y%4)*.014})`;ctx.lineWidth=1;ctx.stroke();
+ }
+ // Particles follow the shared field and form travelling currents.
+ for(let i=0;i<particles.length;i++){
+  const p=particles[i],a=.18+.35*(.5+.5*Math.sin(p.phase+t));
+  ctx.fillStyle=`rgba(${cfg.water.color.join(',')},${a})`;
+  ctx.beginPath();ctx.arc(p.x,p.y,p.size*.85,0,Math.PI*2);ctx.fill();
+ }
+ // Caustics and bright highlights.
+ for(let i=0;i<100;i++){
+  const x=((i*137+t*(12+i%4*5))%(W+40))-20;
+  const y=H*.72+Math.sin(x*.01-t+i)*25+Math.sin(t+i)*8;
+  ctx.strokeStyle=`rgba(184,250,255,${.06+.12*Math.sin(t+i)**2})`;
+  ctx.beginPath();ctx.ellipse(x,y,rand(3,13),1,0,0,Math.PI*2);ctx.stroke();
+ }
+ ripples.forEach(r=>{
+  ctx.beginPath();ctx.ellipse(r.x,r.y,r.r*1.45,r.r*.65,0,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(126,239,249,${r.life*.6})`;ctx.lineWidth=1.2;ctx.stroke();
+ });
+}
+
+function drawFire(){
+ const base=H*.88,c=cfg.fire.color;
+ const glow=ctx.createRadialGradient(W*.5,base,0,W*.5,base,W*.65);
+ glow.addColorStop(0,'rgba(255,65,15,.20)');glow.addColorStop(1,'rgba(255,40,0,0)');
+ ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);
+ // Overlapping flame bodies are continuously reshaped by turbulence.
+ const count=chaos?55:39;
+ for(let i=0;i<count;i++){
+  const x=i/(count-1)*W;
+  const sway=Math.sin(t*2.1+i*1.83)*35+Math.sin(t*.8+i)*19+
+   (pointer.active?(pointer.x-W*.5)*.12:0);
+  const h=H*(.11+.19*(.5+.5*Math.sin(t*1.7+i*2.31)))*(chaos?1.8:1);
+  ctx.beginPath();ctx.moveTo(x-16,base);
+  ctx.bezierCurveTo(x-26+sway*.2,base-h*.3,x-18+sway,base-h*.76,x+sway,base-h);
+  ctx.bezierCurveTo(x+10+sway,base-h*.63,x+28+sway*.2,base-h*.22,x+19,base);
+  ctx.closePath();
+  const g=ctx.createLinearGradient(0,base,0,base-h);
+  g.addColorStop(0,'rgba(255,60,13,.01)');
+  g.addColorStop(.3,'rgba(255,75,15,.29)');
+  g.addColorStop(.7,'rgba(255,150,42,.21)');
+  g.addColorStop(1,'rgba(255,213,126,.015)');
+  ctx.fillStyle=g;ctx.fill();
+ }
+ // Dense moving sparks and embers.
+ for(const p of particles){
+  const a=.15+.6*(.5+.5*Math.sin(t*5+p.phase));
+  ctx.fillStyle=`rgba(255,${100+Math.floor(a*130)},${35+Math.floor(a*60)},${a*.65})`;
+  ctx.fillRect(p.x,p.y,p.size*1.2,p.size*2);
+ }
+ drawSparks();
+}
+
+function drawAir(){
+ // Long ribbons bend through a turbulent vector field.
+ const n=chaos?72:52;
+ for(let i=0;i<n;i++){
+  const y0=H*(.08+i/(n-1)*.84),phase=i*.41;
+  ctx.beginPath();
+  for(let x=-10;x<=W+10;x+=5){
+   const bend=Math.sin(x*.006-t*.7+phase)*H*.035+
+     Math.sin(x*.014+t*.5+phase*1.8)*H*.012+
+     Math.sin(t*1.5+phase)*10;
+   let y=y0+bend;
+   const f=field(x,y);
+   y+=f.y*2;
+   if(x===-10)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  const alpha=.035+(i%8)*.009;
+  ctx.strokeStyle=`rgba(201,192,255,${alpha*(chaos?2:1)})`;
+  ctx.lineWidth=i%8===0?1.6:.75;ctx.stroke();
+ }
+ for(const p of particles){
+  const speed=Math.hypot(p.vx,p.vy);
+  ctx.beginPath();ctx.moveTo(p.x,p.y);
+  ctx.lineTo(p.x-p.vx*4,p.y-p.vy*4);
+  ctx.strokeStyle=`rgba(199,188,255,${Math.min(.55,.12+speed*.045)})`;
+  ctx.lineWidth=p.size*.6;ctx.stroke();
+ }
+}
+
+function drawEarth(){
+ const base=H*.77;
+ // Layered terrain shifts under force and settles under its own weight.
+ for(let layer=0;layer<12;layer++){
+  const y0=base+layer*H*.04;
+  ctx.beginPath();ctx.moveTo(0,H);ctx.lineTo(0,y0);
+  for(let x=0;x<=W;x+=5){
+   let y=y0+Math.sin(x*.008+layer*.6+t*.15)*7+
+     Math.sin(x*.021-layer+t*.2)*3;
+   const f=field(x,y);y+=f.y*1.2;
+   if(pointer.active){const d=dist(x,y,pointer.x,pointer.y);if(d<180)y+=Math.cos(d*.035)*(180-d)/180*force*26}
+   ctx.lineTo(x,y);
+  }
+  ctx.lineTo(W,H);ctx.closePath();
+  ctx.fillStyle=`rgba(${20+layer*2},${15+layer},${11+layer},${.32+layer*.035})`;ctx.fill();
+  ctx.beginPath();
+  for(let x=0;x<=W;x+=5){
+   const y=y0+Math.sin(x*.008+layer*.6+t*.15)*7+Math.sin(x*.021-layer+t*.2)*3;
+   if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle=`rgba(226,185,119,${.06+layer*.012})`;ctx.stroke();
+ }
+ // Cracks branch out from impacts.
+ for(const cr of cracks){
+  cr.age+=.0008*(chaos?4:1);
+  let seed=cr.seed;
+  const next=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+  ctx.beginPath();ctx.moveTo(cr.x,cr.y);
+  let x=cr.x,y=cr.y;
+  const length=25+cr.age%1*Math.min(W,H)*.17;
+  for(let j=0;j<10;j++){x+=(next()-.5)*length*.65;y+=next()*length*.18;ctx.lineTo(x,y)}
+  ctx.strokeStyle=`rgba(255,194,118,${.06+.14*Math.sin(t+cr.seed)**2})`;ctx.lineWidth=1;ctx.stroke();
+ }
+ for(const p of particles){
+  ctx.fillStyle=`rgba(216,176,112,${.12+.22*Math.sin(t+p.phase)**2})`;
+  ctx.beginPath();ctx.arc(p.x,p.y,p.size*1.2,0,Math.PI*2);ctx.fill();
+ }
+ drawSparks();
+}
+
+function drawSparks(){
+ for(const p of sparks){
+  const alpha=clamp(1-p.life,0,1);
+  if(element==='water'){
+   ctx.fillStyle=`rgba(139,245,255,${alpha*.7})`;
+   ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+  }else if(element==='earth'){
+   ctx.fillStyle=`rgba(233,184,118,${alpha*.65})`;
+   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.life*4);
+   ctx.fillRect(-p.size,-p.size,p.size*2,p.size*2);ctx.restore();
+  }else{
+   ctx.fillStyle=`rgba(255,${100+Math.floor(alpha*110)},45,${alpha*.8})`;
+   ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+  }
+ }
+}
+
+function updateSparks(dt){
+ const s=Math.min(2,dt/16.67);
+ for(const p of sparks){
+  p.vx*=Math.pow(.99,s);p.vy*=Math.pow(.995,s);
+  if(element==='water')p.vy+=.05*s;
+  else if(element==='fire')p.vy-=.025*s;
+  else if(element==='earth')p.vy+=.14*s;
+  const f=field(p.x,p.y);
+  p.vx+=f.x*.03*s;p.vy+=f.y*.03*s;
+  p.x+=p.vx*s;p.y+=p.vy*s;p.life+=.009*s;
+  if(p.life>1||p.x<-40||p.x>W+40||p.y<-50||p.y>H+50){
+   if(element==='fire')Object.assign(p,newSpark());
+   else{p.life=2}
+  }
+ }
+ sparks=sparks.filter(p=>p.life<1.1);
+ for(const r of ripples){r.r+=r.speed*dt*.055;r.life-=dt*.0003}
+ ripples=ripples.filter(r=>r.life>0&&r.r<450);
+ for(const w of waves){w.r+=w.speed*dt*.05;w.strength*=Math.pow(.993,dt/16.67);w.life*=Math.pow(.996,dt/16.67)}
+ waves=waves.filter(w=>w.strength>.05&&w.r<Math.max(W,H)*1.4);
+}
+
+function cursor(){
+ if(!pointer.active)return;
+ ctx.beginPath();ctx.arc(pointer.x,pointer.y,pointer.down?20:10,0,Math.PI*2);
+ ctx.strokeStyle=color(pointer.down?.85:.45);ctx.lineWidth=1;ctx.stroke();
+ ctx.beginPath();ctx.arc(pointer.x,pointer.y,2.5,0,Math.PI*2);
+ ctx.fillStyle=cfg[element].accent;ctx.fill();
+ if(pointer.down){
+  ctx.beginPath();ctx.arc(pointer.x,pointer.y,34+Math.sin(t*8)*5,0,Math.PI*2);
+  ctx.strokeStyle=color(.2);ctx.stroke();
+ }
+}
+
+function frame(now){
+ const dt=Math.min(35,now-(last||now));last=now;t+=dt*.001;
+ if(chaos)chaosPower=Math.min(1,chaosPower+dt*.0018);
+ else chaosPower=Math.max(0,chaosPower-dt*.0007);
+ drawBackground();updateParticles(dt);updateSparks(dt);
+ if(element==='water')drawWater();
+ if(element==='fire')drawFire();
+ if(element==='air')drawAir();
+ if(element==='earth')drawEarth();
+ cursor();updateSound();
+ requestAnimationFrame(frame);
+}
+
+function setElement(name){
+ element=name;const e=cfg[name];
+ document.documentElement.style.setProperty('--accent',e.accent);
+ document.documentElement.style.setProperty('--glow',e.accent+'33');
+ $('elementName').textContent=e.name;$('elementDesc').textContent=e.desc;
+ $('elementNum').textContent='ELEMENT '+(['water','fire','air','earth'].indexOf(name)+1).toString().padStart(2,'0')+' — 04';
+ document.querySelectorAll('[data-el]').forEach(b=>b.classList.toggle('active',b.dataset.el===name));
+ if(audio)playTone(.3);
+ toast(e.name.toUpperCase()+' FIELD');
+}
+document.querySelectorAll('[data-el]').forEach(b=>b.addEventListener('click',()=>setElement(b.dataset.el)));
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+function setMode(m){
+ mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+ toast(m.toUpperCase()+' MODE');
+}
+$('force').addEventListener('input',e=>{force=+e.target.value/100;$('fv').textContent=e.target.value+'%'});
+$('volume').addEventListener('input',e=>{volume=+e.target.value/100;$('vv').textContent=e.target.value+'%';if(audio)audio.master.gain.setTargetAtTime(volume*.45,audio.ctx.currentTime,.08)});
+$('quality').addEventListener('change',e=>{quality=+e.target.value;seed();toast('FIELD REBUILT')});
+
+canvas.addEventListener('pointerdown',e=>{
+ canvas.setPointerCapture(e.pointerId);
+ pointer.down=pointer.active=true;
+ pointer.x=pointer.oldX=e.clientX;pointer.y=pointer.oldY=e.clientY;
+ pointer.vx=pointer.vy=0;disturbance(pointer.x,pointer.y,0,0,.65);playTone(.2);
+});
+canvas.addEventListener('pointermove',e=>{
+ const x=e.clientX,y=e.clientY,dx=x-pointer.x,dy=y-pointer.y;
+ pointer.oldX=pointer.x;pointer.oldY=pointer.y;
+ pointer.x=x;pointer.y=y;pointer.vx=mix(pointer.vx,dx,.72);pointer.vy=mix(pointer.vy,dy,.72);pointer.active=true;
+ if(pointer.down){
+  const v=Math.hypot(pointer.vx,pointer.vy);
+  if(mode==='stir'||mode==='gust'||v>9){
+   disturbance(x,y,pointer.vx,pointer.vy,mode==='gust'?.22:mode==='stir'?.18:.1);
+   if(v>17)playTone(clamp(v/30,0,1));
+  }
+ }
+});
+function release(){
+ if(!pointer.down)return;
+ pointer.down=false;
+ const v=Math.hypot(pointer.vx,pointer.vy);
+ if(v>2)disturbance(pointer.x,pointer.y,pointer.vx,pointer.vy,Math.min(3,v/7));
+}
+canvas.addEventListener('pointerup',release);
+canvas.addEventListener('pointercancel',release);
+canvas.addEventListener('pointerleave',()=>{if(!pointer.down)pointer.active=false});
+
+$('chaos').addEventListener('click',()=>{
+ chaos=!chaos;$('chaos').classList.toggle('active',chaos);
+ if(chaos){
+  chaosPower=.75;
+  for(let i=0;i<45;i++){
+   const x=rand(W*.08,W*.92),y=rand(H*.1,H*.9);
+   disturbance(x,y,rand(-25,25),rand(-25,25),rand(1.2,3.2));
+  }
+  // Kick the whole field so the material actually moves.
+  for(const p of particles){
+   const a=rand(0,Math.PI*2),kick=rand(3,17);
+   p.vx+=Math.cos(a)*kick;p.vy+=Math.sin(a)*kick;
+  }
+  if(element==='fire'||element==='water'||element==='earth'){
+   for(let i=0;i<180;i++)sparks.push({x:rand(0,W),y:rand(H*.2,H*.9),vx:rand(-10,10),vy:rand(-12,5),life:0,size:rand(1,4)});
+  }
+  playTone(1);toast('CHAOS RELEASED — FIELD UNSTABLE');
+ }else{
+  toast('FIELD RETURNING TO BALANCE');
+ }
+});
+
+$('reset').addEventListener('click',()=>{
+ chaos=false;chaosPower=0;$('chaos').classList.remove('active');
+ pointer.down=false;waves=[];ripples=[];seed();toast('MATTER RESET');
+});
+
+// Browser-generated ambience and gesture tones.
+async function startAudio(){
+ if(audio){await audio.ctx.resume();return}
+ const AC=window.AudioContext||window.webkitAudioContext;
+ if(!AC){toast('AUDIO NOT SUPPORTED');return}
+ const ac=new AC(),master=ac.createGain();master.gain.value=volume*.45;master.connect(ac.destination);
+ const buf=ac.createBuffer(1,ac.sampleRate*2,ac.sampleRate),data=buf.getChannelData(0);
+ for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+ const noise=ac.createBufferSource();noise.buffer=buf;noise.loop=true;
+ const nf=ac.createBiquadFilter();nf.type='lowpass';nf.frequency.value=900;
+ const ng=ac.createGain();ng.gain.value=.04;noise.connect(nf);nf.connect(ng);ng.connect(master);noise.start();
+ const osc=ac.createOscillator(),og=ac.createGain();osc.type='sine';osc.frequency.value=cfg[element].freq;og.gain.value=.035;osc.connect(og);og.connect(master);osc.start();
+ audio={ctx:ac,master,noise,nf,ng,osc,og};updateSound();$('sound').textContent='♫ Sound on';toast('PROCEDURAL SOUNDSCAPE ACTIVE');
+}
+function updateSound(){
+ if(!audio)return;
+ const now=audio.ctx.currentTime,e=cfg[element];
+ audio.osc.frequency.setTargetAtTime(e.freq+(chaos?70:0)+Math.min(120,Math.hypot(pointer.vx,pointer.vy)*2),now,.15);
+ audio.nf.frequency.setTargetAtTime(element==='fire'?1800:element==='air'?2400:element==='water'?1000:450,now,.25);
+ audio.ng.gain.setTargetAtTime((element==='earth'?.06:.035)*(chaos?3:1)*(pointer.down?1.4:1),now,.2);
+ audio.master.gain.setTargetAtTime(volume*.45,now,.1);
+}
+function playTone(intensity){
+ if(!audio||volume===0)return;
+ const ac=audio.ctx,now=ac.currentTime,o=ac.createOscillator(),g=ac.createGain(),f=ac.createBiquadFilter();
+ o.type=element==='fire'?'sawtooth':element==='air'?'sine':'triangle';
+ const base=cfg[element].freq;
+ o.frequency.setValueAtTime(base*(.7+intensity*1.5),now);
+ o.frequency.exponentialRampToValueAtTime(Math.max(25,base*.45),now+.3+intensity*.5);
+ f.type='lowpass';f.frequency.value=element==='fire'?1500:element==='air'?2200:element==='water'?1800:500;
+ g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(Math.min(.18,volume*.15*(chaos?2:1)),now+.015);
+ g.gain.exponentialRampToValueAtTime(.0001,now+.35+intensity*.5);
+ o.connect(f);f.connect(g);g.connect(audio.master);o.start(now);o.stop(now+1);
+}
+$('sound').addEventListener('click',async()=>{
+ if(!audio){await startAudio();return}
+ if(audio.ctx.state==='suspended')await audio.ctx.resume();
+ if(volume>0){volume=0;$('volume').value=0;$('vv').textContent='0%';$('sound').textContent='♪ Muted'}
+ else{volume=.3;$('volume').value=30;$('vv').textContent='30%';$('sound').textContent='♫ Sound on'}
+});
+resize();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
